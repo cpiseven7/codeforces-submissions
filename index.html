@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Codeforces Submissions Viewer</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f5f5f5; }
+    h2 { margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { padding: 8px 12px; border: 1px solid #ccc; text-align: left; }
+    th { background-color: #ddd; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    #loading { font-weight: bold; }
+    .highlight { background-color: #c5fbc5; }
+    .center-text {
+      text-align: center;
+      margin-top: 100px;
+      font-size: 28px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<div id="home-message" class="center-text" style="display: none;"></div>
+
+<h2 id="title" style="display:none;">All Submissions for <span id="user">...</span></h2>
+<div id="loading" style="display:none;">Loading submissions...</div>
+
+<table id="submissionTable" style="display: none;">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Time</th>
+      <th>Problem</th>
+      <th>Contest</th>
+      <th>Lang</th>
+      <th>Verdict</th>
+      <th>Passed Tests</th>
+      <th>Time</th>
+      <th>Memory</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  const homeMessage = document.getElementById('home-message');
+  const userSpan = document.getElementById('user');
+  const title = document.getElementById('title');
+  const loading = document.getElementById('loading');
+  const table = document.getElementById('submissionTable');
+  const tbody = table.querySelector('tbody');
+
+  if (pathParts.length === 0) {
+    homeMessage.style.display = 'block';
+    homeMessage.innerHTML = `
+      🔍 Enter your Codeforces handle in the URL<br><br>
+      Example: <br><code>${window.location.origin}/<span style="color:green;">tourist</span></code><br><br>
+      ✅ You'll see all of their submissions!
+    `;
+  } else {
+    const handle = pathParts[0];
+    userSpan.textContent = handle;
+    title.style.display = 'block';
+    loading.style.display = 'block';
+
+    async function fetchAllSubmissions(handle) {
+      const allSubmissions = [];
+      let from = 1, step = 1000;
+      while (true) {
+        const res = await fetch(`https://codeforces.com/api/user.status?handle=${handle}&from=${from}&count=${step}`);
+        const data = await res.json();
+        if (data.status !== 'OK') throw new Error('Invalid handle or fetch failed');
+        allSubmissions.push(...data.result);
+        if (data.result.length < step) break;
+        from += step;
+      }
+      return allSubmissions;
+    }
+
+    function createRow(sub, index, total) {
+      const tr = document.createElement('tr');
+      const time = new Date(sub.creationTimeSeconds * 1000).toLocaleString();
+      const name = sub.problem.name;
+      const contestId = sub.contestId ?? '—';
+      const indexLetter = sub.problem.index ?? '—';
+      const problemLink = `https://codeforces.com/contest/${contestId}/problem/${indexLetter}`;
+      const submissionLink = `https://codeforces.com/contest/${contestId}/submission/${sub.id}`;
+
+      tr.innerHTML = `
+        <td>${total - index}</td>
+        <td><a href="${submissionLink}" target="_blank">${time}</a></td>
+        <td><a href="${problemLink}" target="_blank">${name}</a></td>
+        <td>${contestId}</td>
+        <td>${sub.programmingLanguage}</td>
+        <td>${sub.verdict || '---'}</td>
+        <td>${sub.passedTestCount || '—'}</td>
+        <td>${sub.timeConsumedMillis} ms</td>
+        <td>${(sub.memoryConsumedBytes / 1024).toFixed(1)} KB</td>
+      `;
+
+      if (sub.verdict === "OK") {
+        tr.classList.add('highlight');
+      }
+
+      return tr;
+    }
+
+    fetchAllSubmissions(handle).then(submissions => {
+      loading.style.display = 'none';
+      table.style.display = 'table';
+      submissions.reverse();
+      submissions.forEach((sub, i) => {
+        tbody.appendChild(createRow(sub, i, submissions.length));
+      });
+    }).catch(err => {
+      loading.textContent = `❌ Failed to load submissions for "${handle}"`;
+      console.error(err);
+    });
+  }
+</script>
+
+</body>
+</html>
