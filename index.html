@@ -90,7 +90,7 @@
       const submissionLink = `https://codeforces.com/contest/${contestId}/submission/${sub.id}`;
 
       tr.innerHTML = `
-        <td>${total - index}</td>
+        <td>${index + 1}</td>
         <td><a href="${submissionLink}" target="_blank">${time}</a></td>
         <td><a href="${problemLink}" target="_blank">${name}</a></td>
         <td>${contestId}</td>
@@ -111,7 +111,7 @@
     fetchAllSubmissions(handle).then(submissions => {
       loading.style.display = 'none';
       table.style.display = 'table';
-      submissions.reverse();
+      submissions.sort((a, b) => b.creationTimeSeconds - a.creationTimeSeconds);
       submissions.forEach((sub, i) => {
         tbody.appendChild(createRow(sub, i, submissions.length));
       });
